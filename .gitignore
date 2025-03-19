@@ -5,6 +5,7 @@ __pycache__/
 *.gz
 # C extensions
 *.so
+data
 
 # Distribution / packaging
 .Python
