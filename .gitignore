@@ -6,7 +6,9 @@ __pycache__/
 # C extensions
 *.so
 data
-
+logs
+output_model
+settings.json
 # Distribution / packaging
 .Python
 build/
