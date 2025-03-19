@@ -23,8 +23,9 @@ def train_model(args):
     num_classes = len(train_dataset.dataset.classes)
 
     # Create model (Based on ResNet)
+    print(f"Number of classes: {num_classes}")
     model = ResNetForClassification(num_classes)
-    print(f"Parameters: {count_parameters(model)}")
+    print(f"Total Parameters: {count_parameters(model)}M")
 
     # Define optimizer and scheduler
     optimizer = AdamW(
@@ -64,7 +65,7 @@ def train_model(args):
 
     early_stopping = EarlyStoppingCallback(
         early_stopping_threshold=0.01,
-        patience=5
+        early_stopping_patience=5
     )
 
     # Create trainer
