@@ -7,6 +7,7 @@ from torch.utils.data import DataLoader
 from model import ResNetForClassification
 import os
 import argparse
+from safetensors.torch import load_file
 
 
 def test_model(model_path, args):
@@ -14,10 +15,9 @@ def test_model(model_path, args):
     # Load the trained model
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
     model = ResNetForClassification(num_classes=args.num_classes)
-    model.load_state_dict(torch.load(model_path))
+    state_dict = load_file(model_path)
+    model.load_state_dict(state_dict)
     model.to(device)
-    model.eval()
-
     # Load the test dataset
     test_dataset = load_dataset(args.data_root, mode='test')
 
@@ -39,7 +39,7 @@ def test_model(model_path, args):
             with torch.no_grad():
                 outputs = model(images)
                 logits = outputs["logits"]
-                preds = torch.argmax(logits, dim=-1)
+                preds = torch.argmax(logits, dim=1)
 
             # Write predictions to CSV file
             for image_name, pred in zip(image_names, preds):
@@ -54,17 +54,17 @@ if __name__ == "__main__":
     parser.add_argument("--data_root", type=str, default="data/",
                         help="Path to dataset root directory")
     parser.add_argument("--batch_size", type=int,
-                        default=256, help="Batch size")
-    parser.add_argument("--lr", type=float, default=2e-4, help="Learning rate")
-    parser.add_argument("--epochs", type=int, default=100,
+                        default=1, help="Batch size")
+    parser.add_argument("--lr", type=float, default=2e-3, help="Learning rate")
+    parser.add_argument("--epochs", type=int, default=20,
                         help="Number of training epochs")
     parser.add_argument("--weight_decay", type=float,
                         default=0.01, help="Weight decay for optimizer")
     parser.add_argument("--output_dir", type=str,
-                        default="./output_model/res50", help="Directory to save model")
+                        default="./output_model/res34", help="Directory to save model")
     parser.add_argument("--num_classes", type=int,
                         default=100, help="Number of classes")
     parser.add_argument("--model_path", type=str,
-                        default="output_model/res50/best_model.pth", help="path to model")
+                        default="output_model/res34/best_model/model.safetensors", help="path to model")
     args = parser.parse_args()
     test_model(args.model_path, args)
