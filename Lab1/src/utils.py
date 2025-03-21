@@ -13,6 +13,9 @@ def count_parameters(model):
 def compute_metrics(eval_pred):
     logits, labels = eval_pred
     predictions = np.argmax(logits, axis=1)
+
+    if labels.ndim > 1:  # add soft labels for mixup strategies
+        labels = np.argmax(labels, axis=1)
     acc = accuracy_metric.compute(predictions=predictions, references=labels)
     return {"eval_accuracy": acc["accuracy"]}
 

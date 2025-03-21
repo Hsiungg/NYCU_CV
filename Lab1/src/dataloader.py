@@ -1,4 +1,5 @@
 from torchvision import datasets, transforms
+from torchvision.transforms.v2 import MixUp
 from torch.utils.data import Dataset
 from PIL import Image
 import os
@@ -14,20 +15,18 @@ class ImageDataset(Dataset):
         self.image_size = image_size
         self.train_transform = transforms.Compose([
             # Randomly crop and resize to 224x224
-            transforms.RandomResizedCrop(image_size),
+            transforms.RandomResizedCrop((384, 384)),
             transforms.RandomHorizontalFlip(),  # Random horizontal flip
             transforms.RandAugment(
-                num_ops=4, magnitude=9),  # Apply RandAugment
-            transforms.ColorJitter(
-                brightness=0.2, contrast=0.2, saturation=0.2, hue=0.1),
+                num_ops=2, magnitude=20),  # Apply RandAugment
             transforms.ToTensor(),  # Convert to tensor
             transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[
                                  0.229, 0.224, 0.225]),  # Normalize
         ])
         self.test_transform = transforms.Compose([
             # Resize the image to 256x256 (without augmentation)
-            transforms.Resize((256, 256)),
-            transforms.CenterCrop((224, 224)),  # Crop the center to 224x224
+            transforms.Resize((412, 412)),
+            transforms.CenterCrop((384, 384)),  # Crop the center to 224x224
             transforms.ToTensor(),  # Convert to tensor
             transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[
                 0.229, 0.224, 0.225]),  # Normalize
@@ -86,6 +85,20 @@ class ImageDataset(Dataset):
         img_name = os.path.basename(img_path)
         img_name_without_extension = os.path.splitext(img_name)[0]
         return {"pixel_values": img, "labels": torch.tensor(label), "image_name": img_name_without_extension}
+
+
+class MixUpCollator:
+    # ref https://arxiv.org/pdf/2106.10270
+    def __init__(self, num_classes, alpha=0.5):
+        self.mixup = MixUp(alpha=alpha, num_classes=num_classes)
+
+    def __call__(self, batch):
+        pixel_values = torch.stack([item["pixel_values"] for item in batch])
+        labels = torch.tensor([item["labels"] for item in batch])
+
+        pixel_values, labels = self.mixup(pixel_values, labels)
+
+        return {"pixel_values": pixel_values, "labels": labels}
 
 
 def load_dataset(root_dir, mode='train'):
