@@ -1,14 +1,18 @@
-from torchvision import datasets, transforms
+"""Adjust dataset to meet our needs"""
+import os
+import shutil
+
+from torchvision import transforms
 from torchvision.transforms.v2 import MixUp
 from torch.utils.data import Dataset
 from PIL import Image
-import os
-import shutil
 import torch
 import matplotlib.pyplot as plt
 
 
 class ImageDataset(Dataset):
+    """Preprocess data using tansform and split into train, valid, and test"""
+
     def __init__(self, root_dir, mode='train', image_size=(224, 224)):
         self.root_dir = root_dir
         self.mode = mode
@@ -37,7 +41,7 @@ class ImageDataset(Dataset):
 
         if self.mode != 'test':
             self.class_names = sorted(os.listdir(
-                os.path.join(root_dir, mode)), key=lambda x: int(x))
+                os.path.join(root_dir, mode)), key=int)
             for label, class_name in enumerate(self.class_names):
                 class_folder = os.path.join(root_dir, mode, class_name)
                 if os.path.isdir(class_folder):
@@ -75,20 +79,22 @@ class ImageDataset(Dataset):
         img_path = self.image_paths[idx]
         label = self.labels[idx]
 
-        img = Image.open(img_path).convert('RGB')
+        img_file = Image.open(img_path).convert('RGB')
 
         if self.mode == 'train':
-            img = self.train_transform(img)
+            img_file = self.train_transform(img_file)
         else:
-            img = self.test_transform(img)
+            img_file = self.test_transform(img_file)
 
         img_name = os.path.basename(img_path)
         img_name_without_extension = os.path.splitext(img_name)[0]
-        return {"pixel_values": img, "labels": torch.tensor(label), "image_name": img_name_without_extension}
+        return {"pixel_values": img_file, "labels": torch.tensor(label),
+                "image_name": img_name_without_extension}
 
 
 class MixUpCollator:
-    # ref https://arxiv.org/pdf/2106.10270
+    """Implement MixUp data augmentation by changing the collator"""
+
     def __init__(self, num_classes, alpha=0.5):
         self.mixup = MixUp(alpha=alpha, num_classes=num_classes)
 
@@ -102,6 +108,7 @@ class MixUpCollator:
 
 
 def load_dataset(root_dir, mode='train'):
+    """Load a dataset from root directory"""
     return ImageDataset(root_dir, mode)
 
 

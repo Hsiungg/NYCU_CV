@@ -1,16 +1,20 @@
+"""Utility functions"""
+import random
 import numpy as np
 import evaluate
-import random
 import torch
+
 accuracy_metric = evaluate.load("accuracy")
 
 
 def count_parameters(model):
+    """Returns the number of parameters in pytorch model"""
     total_params = sum(p.numel() for p in model.parameters())
     return total_params / 1e6
 
 
 def compute_metrics(eval_pred):
+    """set up metrix use in validation """
     logits, labels = eval_pred
     predictions = np.argmax(logits, axis=1)
 
@@ -21,6 +25,7 @@ def compute_metrics(eval_pred):
 
 
 def same_seeds(seed):
+    """Fix the seed """
     random.seed(seed)
     np.random.seed(seed)
     torch.manual_seed(seed)

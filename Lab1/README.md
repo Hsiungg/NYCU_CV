@@ -6,20 +6,23 @@ Name: 王翔 Hsiang, Wang
 
 ## Task Description
 
-Lab1 uses ResNet as the backbone and performs image classification on a dataset of 100 types of plants and animals, with the metric being top-1 accuracy.
+Lab1 employs **ResNet** as the backbone model, with a constraint of **100 million** parameters. The task is to perform image classification on a dataset containing **100 categories** of plants and animals. The performance is evaluated based on the **top-1 accuracy metric**.
+
+---
 
 ## Environment Setup
 
 ### 1. Clone the Repository
 
 ```sh
-    git clone https://github.com/Hsiungg/NYCU_CV.git
-    cd NYCU_CV/Lab1
+git clone https://github.com/Hsiungg/NYCU_CV.git
+cd NYCU_CV/Lab1
 ```
+___
 
 ### 2. Install Dependencies
 
-### Recommended Python Version
+#### Recommended Python Version
 
 It is recommended to use **Python 3.12.9** for this lab.
 
@@ -29,7 +32,7 @@ Use the provided **requirements.txt** to handle the environment package dependen
 # Install required libraries and tools
 pip install -r requirements.txt
 ```
-
+___
 ### 3. Download the Dataset
 
 You can download the dataset from the following link:
@@ -45,15 +48,15 @@ mv dataset.tar.gz data/
 cd data
 tar -xzvf hw1-data.tar.gz
 ```
-
+___
 ### 4. Set Up Training and Testing Environment
 
 To start training the model, use the following command:
 
 ```sh
-python train.py --data_root ./data/ --output_dir ./output_dir --run_name ./log_run
+python src/train.py --data_root ./data/ --output_dir ./output_dir --run_name ./log_run
 ```
-
+___
 #### Training Options
 
 - --data_root: Path to the dataset directory (default: ./data).
@@ -63,7 +66,7 @@ python train.py --data_root ./data/ --output_dir ./output_dir --run_name ./log_r
 To start testing the model and output **prediction.csv** file, use the following command:
 
 ```sh
-python test.py --data_root ./data/ --output_dir ./output_dir --run_name ./log_run
+python src/test.py --data_root ./data/ --output_dir ./output_dir --run_name ./log_run
 ```
 
 #### Testing Options
@@ -71,7 +74,8 @@ python test.py --data_root ./data/ --output_dir ./output_dir --run_name ./log_ru
 - --data_root: Path to the dataset directory (default: ./data).
 - --output_dir: Path to the output directory for **predict.csv** file
 - --model_path: Path to trained model for testing. (/path/to/your/model/model.safetensors)
-  
+
+---
 ## Performance snapshots
 
 A snap shot.

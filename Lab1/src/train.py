@@ -1,18 +1,23 @@
-from dataloader import load_dataset, MixUpCollator
-from model import ResNetForClassification
-from transformers import Trainer, TrainingArguments, EarlyStoppingCallback, get_cosine_schedule_with_warmup, get_cosine_with_hard_restarts_schedule_with_warmup
-from torch.optim import AdamW
-import torch
+"""Build training pypline with Trainer from transformers"""
 import argparse
 import os
 import math
-from utils import count_parameters, compute_metrics, same_seeds
+
 from test import test_model
+from transformers import Trainer, TrainingArguments, EarlyStoppingCallback, \
+    get_cosine_with_hard_restarts_schedule_with_warmup
+from torch.optim import AdamW
+
+from utils import count_parameters, compute_metrics, same_seeds
+from dataloader import load_dataset, MixUpCollator
+from model import ResNetForClassification
 
 
-def train_model(args):
+def train_model(args):   # pylint: disable=redefined-outer-name
+    """Set up training parameters and pipeline for model"""
     print(
-        f"Training ResNet on {args.data_root} with batch_size={args.batch_size}, lr={args.lr}, epochs={args.epochs}"
+        f"Training ResNet on {args.data_root} with batch_size={args.batch_size},\
+        lr={args.lr}, epochs={args.epochs}"
     )
 
     # Load dataset
@@ -29,18 +34,12 @@ def train_model(args):
                       weight_decay=args.weight_decay)
     steps_per_epoch = math.ceil(len(train_dataset) / args.batch_size)
     num_training_steps = steps_per_epoch * args.epochs
-    num_warmup_steps = 0.25 * num_training_steps
-    '''
-    scheduler = get_cosine_schedule_with_warmup(
-        optimizer,
-        num_warmup_steps=num_warmup_steps,
-        num_training_steps=num_training_steps
-    )
-    '''
+    num_warmup_steps = steps_per_epoch * 10
+
     scheduler = get_cosine_with_hard_restarts_schedule_with_warmup(
         optimizer,
-        num_warmup_steps=steps_per_epoch * 10,
-        num_training_steps=steps_per_epoch * args.epochs,
+        num_warmup_steps=num_warmup_steps,
+        num_training_steps=num_training_steps,
         num_cycles=3,
     )
     print(f"Step per epoch : {steps_per_epoch}")
@@ -75,8 +74,8 @@ def train_model(args):
     )
 
     early_stopping = EarlyStoppingCallback(
-        early_stopping_threshold=0.001,
-        early_stopping_patience=40
+        early_stopping_threshold=0.01,
+        early_stopping_patience=20
     )
 
     # Create trainer
@@ -120,10 +119,10 @@ if __name__ == "__main__":
     parser.add_argument("--weight_decay", type=float,
                         default=0.03, help="Weight decay for optimizer")
     parser.add_argument("--output_dir", type=str,
-                        default="./output_model/vitr50_3", help="Directory to save model")
+                        default="./output_model/res50", help="Directory to save model")
     parser.add_argument("--num_classes", type=int,
                         default=100, help="Number of classes")
     parser.add_argument("--run_name", type=str,
-                        default="vitr50_3", help="log run name")
+                        default="res50", help="log run name")
     args = parser.parse_args()
     train_model(args)
