@@ -78,4 +78,4 @@ python src/test.py --data_root ./data/ --output_dir ./output_dir --run_name ./lo
 ---
 ## Performance snapshots
 
-A snap shot.
+![image](https://github.com/Hsiungg/NYCU_CV/blob/b908f170e86ac75fa544c95724399700779c726f/Lab1/final_rank.png)
