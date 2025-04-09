@@ -9,6 +9,7 @@ data
 logs
 output_model
 settings.json
+nycu-hw2-data
 # Distribution / packaging
 .Python
 build/
