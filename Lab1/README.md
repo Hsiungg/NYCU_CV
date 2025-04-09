@@ -44,7 +44,7 @@ After placing the **dataset.tar.gz** file in the cloned directory, extract it us
 
 ```sh
 mkdir -p data
-mv dataset.tar.gz data/
+mv hw1-data.tar.gz data/
 cd data
 tar -xzvf hw1-data.tar.gz
 ```
