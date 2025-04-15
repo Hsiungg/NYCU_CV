@@ -19,23 +19,29 @@ def add_custom_config(cfg):
 parser = argparse.ArgumentParser(
     description="Detectron2 Prediction and Save Output")
 parser.add_argument(
-    '--output_dir',
+    '--save_dir',
     type=str,
-    default="faster_rcnn_X_101_32x8d_FPN_giou",
+    default="faster_rcnn_X_101_32x8d_FPN_3x",
     help="The name of the directory which store data"
+)
+parser.add_argument(
+    '--model_name',
+    type=str,
+    default="best_model.pth",
+    help="The name of the model you want to test. ex:xxx.pth"
 )
 args = parser.parse_args()
 
 # Set up config
 OUT_ROOT = "output"
 # Change here to get yaml file
-OUT_PATH = os.path.join(OUT_ROOT, args.output_dir)
+OUT_PATH = os.path.join(OUT_ROOT, args.save_dir)
 OUT_YAML = os.path.join(OUT_PATH, "output_config.yaml")
 
 cfg = get_cfg()
 add_custom_config(cfg)
 cfg.merge_from_file(OUT_YAML)
-cfg.MODEL.WEIGHTS = os.path.join(OUT_PATH, "best_model.pth")
+cfg.MODEL.WEIGHTS = os.path.join(OUT_PATH, args.model_name)
 
 # set hyperparameters
 cfg.MODEL.ROI_HEADS.SCORE_THRESH_TEST = 0.7  # confidence score
