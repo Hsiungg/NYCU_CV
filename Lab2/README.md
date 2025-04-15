@@ -6,7 +6,7 @@ Name: 王翔 Hsiang, Wang
 
 ## Task Description
 
-Lab1 employs **ResNet** as the backbone model, with a constraint of **100 million** parameters. The task is to perform image classification on a dataset containing **100 categories** of plants and animals. The performance is evaluated based on the **top-1 accuracy metric**.
+Lab 2 uses **Fast R-CNN** to perform **object detection** on images containing digits. It is divided into two tasks: identifying the bounding box of each digit, and recognizing which digits are present in the entire image. The performance is evaluated based on the **mAP** and **Accuracy**.
 
 ---
 
