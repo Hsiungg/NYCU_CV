@@ -20,7 +20,6 @@ from detectron2.data.transforms import (
 from detectron2.data import transforms as T
 from detectron2.data import detection_utils as utils
 import torch
-
 # evaluator
 from detectron2.evaluation import COCOEvaluator, inference_on_dataset
 from detectron2.data import build_detection_test_loader, build_detection_train_loader, DatasetMapper
@@ -49,7 +48,7 @@ parser = argparse.ArgumentParser(
 parser.add_argument(
     '--output_dir',
     type=str,
-    default="faster_rcnn",
+    default="faster_rcnn_X_101_32x8d_FPN_giou",
     help="The name of the directory which store data"
 )
 args = parser.parse_args()
@@ -122,24 +121,23 @@ cfg.SOLVER.IMS_PER_BATCH = 4
 cfg.SOLVER.OPTIMIZER = "AdamW"
 cfg.SOLVER.BASE_LR = 0.0001
 cfg.SOLVER.WEIGHT_DECAY = 0.0001
-target_epoch = 20
+target_epoch = 15
 img_per_iter = cfg.SOLVER.IMS_PER_BATCH
 dataset_size = 30062
 iter_per_epoch = dataset_size // img_per_iter
-cfg.SOLVER.MAX_ITER = target_epoch * iter_per_epoch
-cfg.SOLVER.STEPS = (10 * iter_per_epoch, 20 * iter_per_epoch)
-cfg.SOLVER.GAMMA = 0.1
 
 # Learning Rate Scheduler
 cfg.SOLVER.LR_SCHEDULER_NAME = "WarmupCosineLR"
 cfg.SOLVER.MAX_ITER = target_epoch * iter_per_epoch
-cfg.SOLVER.STEPS = (10 * iter_per_epoch, 20 * iter_per_epoch)
+cfg.SOLVER.STEPS = (4 * iter_per_epoch, 8 * iter_per_epoch)
 cfg.SOLVER.GAMMA = 0.1
-cfg.SOLVER.WARMUP_ITERS = 1.5 * iter_per_epoch
+cfg.SOLVER.WARMUP_ITERS = 2 * iter_per_epoch
 
 cfg.MODEL.ROI_HEADS.BATCH_SIZE_PER_IMAGE = 128
 cfg.MODEL.ROI_HEADS.NUM_CLASSES = 10
 
+# Loss
+# cfg.MODEL.ROI_BOX_HEAD.BBOX_REG_LOSS_TYPE = "giou"
 
 # OUTPUT DIR
 OUTPUT_ROOT = "./output"
@@ -161,7 +159,6 @@ evaluator = COCOEvaluator(
 class MyTrainer(DefaultTrainer):
     @classmethod
     def build_train_loader(cls, cfg):
-        # Instead of passing mapper= here directly...
         return build_detection_train_loader(
             cfg,
             mapper=MyMapper(cfg, is_train=True)

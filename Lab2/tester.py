@@ -7,6 +7,13 @@ import numpy as np
 from tqdm import tqdm
 from detectron2.engine import DefaultPredictor
 from detectron2.config import get_cfg
+from detectron2.config import CfgNode as CN
+
+
+def add_custom_config(cfg):
+    cfg.INPUT.AUGMENTATIONS = []
+    cfg.SOLVER.OPTIMIZER = "AdamW"
+
 
 # Set up argument parser
 parser = argparse.ArgumentParser(
@@ -14,7 +21,7 @@ parser = argparse.ArgumentParser(
 parser.add_argument(
     '--output_dir',
     type=str,
-    default="faster_rcnn",
+    default="faster_rcnn_X_101_32x8d_FPN_giou",
     help="The name of the directory which store data"
 )
 args = parser.parse_args()
@@ -26,12 +33,13 @@ OUT_PATH = os.path.join(OUT_ROOT, args.output_dir)
 OUT_YAML = os.path.join(OUT_PATH, "output_config.yaml")
 
 cfg = get_cfg()
+add_custom_config(cfg)
 cfg.merge_from_file(OUT_YAML)
 cfg.MODEL.WEIGHTS = os.path.join(OUT_PATH, "best_model.pth")
 
 # set hyperparameters
 cfg.MODEL.ROI_HEADS.SCORE_THRESH_TEST = 0.7  # confidence score
-cfg.MODEL.ROI_HEADS.NMS_THRESH_TEST = 0.4
+cfg.MODEL.ROI_HEADS.NMS_THRESH_TEST = 0.5
 # Predictor and dataset
 predictor = DefaultPredictor(cfg)
 test_image_dir = 'nycu-hw2-data/test'
