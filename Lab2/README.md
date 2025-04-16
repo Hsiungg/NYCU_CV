@@ -78,4 +78,4 @@ python tester.py --save_dir /path/to/save/directory
 
 ## Performance snapshots
 
-![image](https://github.com/Hsiungg/NYCU_CV/blob/b908f170e86ac75fa544c95724399700779c726f/Lab1/final_rank.png)
+![image](https://github.com/Hsiungg/NYCU_CV/blob/main/Lab2/final_score.png)
