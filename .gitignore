@@ -11,6 +11,10 @@ output_model
 settings.json
 nycu-hw2-data
 *output*
+*.json
+test.py
+
+*sample*code
 # Distribution / packaging
 .Python
 build/
