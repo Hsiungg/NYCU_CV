@@ -6,6 +6,7 @@ import argparse
 
 # trainer
 import torch
+from detectron2.data import DatasetCatalog
 from detectron2.engine import DefaultTrainer
 from detectron2.config import get_cfg
 from detectron2 import model_zoo
@@ -20,11 +21,11 @@ from detectron2.data.transforms import (
 from detectron2.data import transforms as T
 from detectron2.data import detection_utils as utils
 # evaluator
-# from detectron2.evaluation import COCOEvaluator, inference_on_dataset
-# build_detection_test_loader
+from detectron2.evaluation import COCOEvaluator, inference_on_dataset
+from detectron2.data import build_detection_test_loader
 from detectron2.data import build_detection_train_loader
-# from detectron2.engine import hooks
-# from detectron2.engine.hooks import BestCheckpointer
+from detectron2.engine import hooks
+from detectron2.engine.hooks import BestCheckpointer
 
 # TensorBoard
 from detectron2.utils.logger import setup_logger
@@ -38,7 +39,7 @@ parser = argparse.ArgumentParser(
 parser.add_argument(
     '--output_dir',
     type=str,
-    default="",
+    default="mask_rcnn_X_101_32x8d_FPN_3x",
     help="The name of the directory which store data"
 )
 args = parser.parse_args()
@@ -46,7 +47,7 @@ args = parser.parse_args()
 # Set up Config
 cfg = get_cfg()
 cfg.merge_from_file(model_zoo.get_config_file(
-    "COCO-InstanceSegmentation/mask_rcnn_R_50_FPN_3x.yaml"
+    "COCO-InstanceSegmentation/mask_rcnn_X_101_32x8d_FPN_3x.yaml"
 ))
 cfg.INPUT.MASK_FORMAT = "bitmask"
 # Set up directory path
@@ -56,17 +57,17 @@ TRAIN_IMG_DIR = os.path.join(DATASET_DIR, "train")
 # Register dataset
 class_names = ["class1", "class2", "class3", "class4"]
 DATASET_NAME = "my_instance_dataset"
-register_custom_dataset(TRAIN_IMG_DIR, class_names, DATASET_NAME)
+register_custom_dataset(TRAIN_IMG_DIR, class_names,
+                        DATASET_NAME, split_ratio=0.8)
 setup_logger()
 
-cfg.DATASETS.TRAIN = (DATASET_NAME,)
-# cfg.DATASETS.TEST = ("my_val",)
-cfg.DATASETS.TEST = ()
+cfg.DATASETS.TRAIN = (f"{DATASET_NAME}_train",)
+cfg.DATASETS.TEST = (f"{DATASET_NAME}_val",)
 cfg.DATALOADER.NUM_WORKERS = 6
 
 # Pretrained model
 cfg.MODEL.WEIGHTS = model_zoo.get_checkpoint_url(
-    "COCO-InstanceSegmentation/mask_rcnn_R_50_FPN_3x.yaml")
+    "COCO-InstanceSegmentation/mask_rcnn_X_101_32x8d_FPN_3x.yaml")
 
 # Data Augmentation Configuration
 augmentation_pipeline = [
@@ -102,6 +103,11 @@ class MyMapper:
         image = utils.read_image(
             dataset_dict["file_name"], format=self.image_format)
 
+        if image.shape[-1] == 4:
+            image = image[..., :3]
+
+        image = image[..., ::-1]
+
         aug_input = T.AugInput(image)
         transforms = T.AugmentationList(self.augmentations)(aug_input)
         image = aug_input.image
@@ -121,14 +127,16 @@ class MyMapper:
         return dataset_dict
 
 
+train_dataset_name = cfg.DATASETS.TRAIN[0]
+train_dataset = DatasetCatalog.get(train_dataset_name)
 # Training Configuration
-cfg.SOLVER.IMS_PER_BATCH = 8
+cfg.SOLVER.IMS_PER_BATCH = 4
 cfg.SOLVER.OPTIMIZER = "AdamW"
 cfg.SOLVER.BASE_LR = 0.0001
 cfg.SOLVER.WEIGHT_DECAY = 0.0001
-TARGET_EPOCH = 50
+TARGET_EPOCH = 60
 img_per_iter = cfg.SOLVER.IMS_PER_BATCH
-DATASET_SIZE = 209
+DATASET_SIZE = len(train_dataset)
 iter_per_epoch = DATASET_SIZE // img_per_iter
 
 # Learning Rate Scheduler
@@ -153,16 +161,12 @@ os.makedirs(cfg.OUTPUT_DIR, exist_ok=True)
 
 # evaluator
 # pylint: disable=pointless-string-statement
-'''
-cfg.TEST.EVAL_PERIOD = iter_per_epoch
+cfg.TEST.EVAL_PERIOD = 3 * iter_per_epoch
 evaluator = COCOEvaluator(
-    "my_val",
-    distributed=False,
+    cfg.DATASETS.TEST[0],
     output_dir=cfg.OUTPUT_DIR,
-    # use_fast_impl=True,
-    tasks=["bbox"],
+    tasks=["segm"],
 )
-'''
 
 
 class MyTrainer(DefaultTrainer):
@@ -176,13 +180,34 @@ class MyTrainer(DefaultTrainer):
             # mapper=MyMapper(cfg, is_train=True),
             total_batch_size=cfg.SOLVER.IMS_PER_BATCH,
         )
-# val_loader = build_detection_test_loader(cfg, "my_val")
+
+    @classmethod
+    def build_evaluator(cls, cfg, dataset_name, output_folder=None):
+        if output_folder is None:
+            output_folder = os.path.join(cfg.OUTPUT_DIR, "inference")
+        return COCOEvaluator(dataset_name, tasks=["segm"], output_dir=output_folder)
+
+
+val_loader = build_detection_test_loader(cfg, cfg.DATASETS.TEST[0])
+
+
+def eval_func():
+    return inference_on_dataset(trainer.model, val_loader, evaluator)
 
 
 # trainer
 trainer = MyTrainer(cfg)
 trainer.register_hooks([
-    PeriodicWriter([TensorboardXWriter("./logs")], period=iter_per_epoch),
+    hooks.PeriodicWriter([TensorboardXWriter("./logs")],
+                         period=iter_per_epoch),
+    hooks.EvalHook(cfg.TEST.EVAL_PERIOD, eval_func),
+    BestCheckpointer(
+        cfg.TEST.EVAL_PERIOD,
+        trainer.checkpointer,
+        val_metric="segm/AP",
+        mode="max",
+        file_prefix="best_model"
+    )
 ])
 OUT_YAML = os.path.join(cfg.OUTPUT_DIR, "output_config.yaml")
 with open(OUT_YAML, "w", encoding='utf-8') as f:

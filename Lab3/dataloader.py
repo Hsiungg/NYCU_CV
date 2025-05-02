@@ -1,6 +1,7 @@
 """Register dataset to Detectron2 for Mask-RCNN"""
 import os
 import pickle
+import random
 import numpy as np
 from skimage.io import imread
 from pycocotools import mask as mask_util
@@ -8,9 +9,9 @@ from detectron2.structures import BoxMode
 from detectron2.data import DatasetCatalog, MetadataCatalog
 
 
-def register_custom_dataset(root_dir, class_names, dataset_name="my_instance_dataset"):
+def register_custom_dataset(root_dir, class_names, dataset_name="my_instance_dataset", split_ratio=0.8, seed=42):
     """
-    transform dataset into dataset dicts for detectron2 API
+    Transform dataset into dataset dicts for Detectron2 API and split into train/val.
 
     Args:
         root_dir (str): root directory that place train data
@@ -51,17 +52,17 @@ def register_custom_dataset(root_dir, class_names, dataset_name="my_instance_dat
                 if not os.path.exists(mask_path):
                     continue
 
-                mask = imread(mask_path).copy()
+                mask = imread(mask_path)
                 instance_ids = np.unique(mask)
                 # remove background "0".
                 instance_ids = instance_ids[instance_ids != 0]
 
                 for inst_id in instance_ids:
                     binary_mask = (mask == inst_id).astype(
-                        np.uint8, copy=True).copy()
+                        np.uint8)
                     if binary_mask.sum() == 0:
                         continue
-                    binary_mask = np.asfortranarray(binary_mask.copy())
+                    binary_mask = np.asfortranarray(binary_mask)
                     rle = mask_util.encode(binary_mask)
                     area = mask_util.area(rle).item()
                     rle["counts"] = rle["counts"].decode("utf-8")
@@ -78,15 +79,28 @@ def register_custom_dataset(root_dir, class_names, dataset_name="my_instance_dat
                     record["annotations"].append(annotation)
 
             dataset_dicts.append(record)
+
         with open(pkl_path, "wb") as f:
             pickle.dump(dataset_dicts, f)
         print(f"Saved cached dataset to: {pkl_path}")
 
-    if dataset_name not in DatasetCatalog.list():
-        DatasetCatalog.register(dataset_name, lambda: dataset_dicts)
-        MetadataCatalog.get(dataset_name).set(thing_classes=class_names)
-        print(f"Registered dataset '{dataset_name}'")
-    else:
-        print(f"Dataset '{dataset_name}' is already registered.")
-    print(
-        f" Registered dataset '{dataset_name}' with {len(dataset_dicts)} samples.")
+    random.seed(seed)
+    random.shuffle(dataset_dicts)
+    split_index = int(len(dataset_dicts) * split_ratio)
+    train_dicts = dataset_dicts[:split_index]
+    val_dicts = dataset_dicts[split_index:]
+
+    train_name = f"{dataset_name}_train"
+    val_name = f"{dataset_name}_val"
+
+    if train_name not in DatasetCatalog.list():
+        DatasetCatalog.register(train_name, lambda d=train_dicts: d)
+        MetadataCatalog.get(train_name).set(thing_classes=class_names)
+        print(
+            f"Registered dataset '{train_name}' with {len(train_dicts)} samples.")
+
+    if val_name not in DatasetCatalog.list():
+        DatasetCatalog.register(val_name, lambda d=val_dicts: d)
+        MetadataCatalog.get(val_name).set(thing_classes=class_names)
+        print(
+            f"Registered dataset '{val_name}' with {len(val_dicts)} samples.")
