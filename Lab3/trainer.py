@@ -59,7 +59,7 @@ TRAIN_IMG_DIR = os.path.join(DATASET_DIR, "train")
 class_names = ["class1", "class2", "class3", "class4"]
 DATASET_NAME = "my_instance_dataset"
 register_custom_dataset(TRAIN_IMG_DIR, class_names,
-                        DATASET_NAME, split_ratio=0.9)
+                        DATASET_NAME, split_ratio=0.8)
 setup_logger()
 
 cfg.DATASETS.TRAIN = (f"{DATASET_NAME}_train",)
@@ -90,8 +90,7 @@ def build_train_augmentations():
 
 def build_test_augmentations():
     return [
-        ResizeShortestEdge(short_edge_length=(
-            640, 672, 704, 736, 768, 800, 1024), max_size=1333, sample_style="choice"),
+        T.Resize((1024, 1024)),
     ]
 
 
