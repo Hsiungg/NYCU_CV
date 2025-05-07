@@ -13,15 +13,16 @@ from tqdm import tqdm
 def add_custom_config(cfg):
     cfg.INPUT.AUGMENTATIONS = []
     cfg.SOLVER.OPTIMIZER = "AdamW"
+    cfg.MODEL.ROI_HEADS.CLASS_LOSS = "focal"
 
 
 def main():
     # Argument parser
     parser = argparse.ArgumentParser(
         description="Detectron2 Prediction and Save Output")
-    parser.add_argument('--save_dir', type=str, default="mask_rcnn_R_50_FPN_3x",
+    parser.add_argument('--save_dir', type=str, default="mask_rcnn_X_101_32x8d_FPN_3x",
                         help="Directory storing model and config")
-    parser.add_argument('--model_name', type=str, default="model_final.pth",
+    parser.add_argument('--model_name', type=str, default="best_model.pth",
                         help="Model weights filename")
     parser.add_argument('--image_dir', type=str, default="data/test_release",
                         help="Directory containing test images (.tif)")
@@ -46,7 +47,7 @@ def main():
     add_custom_config(cfg)
     cfg.merge_from_file(out_yaml)
     cfg.MODEL.WEIGHTS = os.path.join(out_path, args.model_name)
-    cfg.MODEL.ROI_HEADS.SCORE_THRESH_TEST = 0.1
+    cfg.MODEL.ROI_HEADS.SCORE_THRESH_TEST = 0.5
     cfg.MODEL.DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
 
     predictor = DefaultPredictor(cfg)
