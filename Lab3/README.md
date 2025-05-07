@@ -6,7 +6,7 @@ Name: 王翔 Hsiang, Wang
 
 ## Task Description
 
-In Lab 3, **Mask R-CNN** was used to perform instance segmentation on a dataset containing four types of cells. The model size was constrained to a maximum of 200 MB, and only the **Mask R-CNN** architecture was allowed. The final evaluation metric was the segmentation **mAP@50**.
+In Lab 3, **Mask R-CNN** was used to perform instance segmentation on a dataset containing four types of cells. The model size (trainable parameters) was constrained to a maximum of 200 M, and only the **Mask R-CNN** architecture was allowed. The final evaluation metric was the segmentation **mAP@50**.
 
 ---
 
@@ -52,6 +52,7 @@ mkdir -p data
 mv hw3-data-release.tar.gz data/
 cd data
 tar -xzvf hw3-data-release.tar.gz
+cd ..
 ```
 
 ---
