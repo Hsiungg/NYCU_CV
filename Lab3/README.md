@@ -88,4 +88,4 @@ python tester.py --save_dir /path/to/save/directory --model_name "your_model_nam
 
 TBA
 
-![image](https://github.com/Hsiungg/NYCU_CV/blob/main/Lab2/final_score.png)
+![image](https://github.com/Hsiungg/NYCU_CV/blob/main/Lab3/final_result.png)
