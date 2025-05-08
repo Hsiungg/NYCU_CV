@@ -86,6 +86,5 @@ python tester.py --save_dir /path/to/save/directory --model_name "your_model_nam
 
 ## Performance snapshots
 
-TBA
 
 ![image](https://github.com/Hsiungg/NYCU_CV/blob/main/Lab3/final_result.png)
