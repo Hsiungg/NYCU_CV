@@ -4,191 +4,159 @@ import copy
 from PIL import Image
 import numpy as np
 
-from torch.utils.data import Dataset
+from torch.utils.data import Dataset, random_split
 from torchvision.transforms import ToPILImage, Compose, RandomCrop, ToTensor
 import torch
 
 from utils.image_utils import random_augmentation, crop_img
 from utils.degradation_utils import Degradation
 
-"""
-class PromptTrainDataset(Dataset):
-    def __init__(self, args):
-        super(PromptTrainDataset, self).__init__()
-        self.args = args
-        self.rs_ids = []
-        self.hazy_ids = []
-        self.D = Degradation(args)
-        self.de_temp = 0
-        self.de_type = self.args.de_type
-        print(self.de_type)
 
-        self.de_dict = {'denoise_15': 0, 'denoise_25': 1, 'denoise_50': 2, 'derain': 3, 'dehaze': 4, 'deblur' : 5}
+def cutmix(clean_patch, degrad_patch, clean_patch2, degrad_patch2, alpha=1.0):
+    """
+    Perform CutMix data augmentation
+    Args:
+        clean_patch: First clean image
+        degrad_patch: First degraded image
+        clean_patch2: Second clean image
+        degrad_patch2: Second degraded image
+        alpha: Beta distribution parameter
+    Returns:
+        mixed_clean: Mixed clean image
+        mixed_degrad: Mixed degraded image
+        lam: Mixing ratio
+    """
+    # Generate random mixing ratio
+    lam = np.random.beta(alpha, alpha)
 
-        self._init_ids()
-        self._merge_ids()
+    # Get image dimensions
+    H, W = clean_patch.shape[1:]
 
-        self.crop_transform = Compose([
-            ToPILImage(),
-            RandomCrop(args.patch_size),
-        ])
+    # Generate random crop region
+    cut_rat = np.sqrt(1. - lam)
+    cut_w = int(W * cut_rat)
+    cut_h = int(H * cut_rat)
 
-        self.toTensor = ToTensor()
+    # Randomly select center point of crop region
+    cx = np.random.randint(W)
+    cy = np.random.randint(H)
 
-    def _init_ids(self):
-        if 'denoise_15' in self.de_type or 'denoise_25' in self.de_type or 'denoise_50' in self.de_type:
-            self._init_clean_ids()
-        if 'derain' in self.de_type:
-            self._init_rs_ids()
-        if 'dehaze' in self.de_type:
-            self._init_hazy_ids()
+    # Ensure crop region is within image bounds
+    bbx1 = np.clip(cx - cut_w // 2, 0, W)
+    bby1 = np.clip(cy - cut_h // 2, 0, H)
+    bbx2 = np.clip(cx + cut_w // 2, 0, W)
+    bby2 = np.clip(cy + cut_h // 2, 0, H)
 
-        random.shuffle(self.de_type)
+    # Perform mixing
+    mixed_clean = clean_patch.clone()
+    mixed_degrad = degrad_patch.clone()
 
-    def _init_clean_ids(self):
-        ref_file = self.args.data_file_dir + "noisy/denoise_airnet.txt"
-        temp_ids = []
-        temp_ids+= [id_.strip() for id_ in open(ref_file)]
-        clean_ids = []
-        name_list = os.listdir(self.args.denoise_dir)
-        clean_ids += [self.args.denoise_dir + id_ for id_ in name_list if id_.strip() in temp_ids]
+    mixed_clean[:, bby1:bby2,
+                bbx1:bbx2] = clean_patch2[:, bby1:bby2, bbx1:bbx2]
+    mixed_degrad[:, bby1:bby2,
+                 bbx1:bbx2] = degrad_patch2[:, bby1:bby2, bbx1:bbx2]
 
-        if 'denoise_15' in self.de_type:
-            self.s15_ids = [{"clean_id": x,"de_type":0} for x in clean_ids]
-            self.s15_ids = self.s15_ids * 3
-            random.shuffle(self.s15_ids)
-            self.s15_counter = 0
-        if 'denoise_25' in self.de_type:
-            self.s25_ids = [{"clean_id": x,"de_type":1} for x in clean_ids]
-            self.s25_ids = self.s25_ids * 3
-            random.shuffle(self.s25_ids)
-            self.s25_counter = 0
-        if 'denoise_50' in self.de_type:
-            self.s50_ids = [{"clean_id": x,"de_type":2} for x in clean_ids]
-            self.s50_ids = self.s50_ids * 3
-            random.shuffle(self.s50_ids)
-            self.s50_counter = 0
+    # Adjust mixing ratio
+    lam = 1 - ((bbx2 - bbx1) * (bby2 - bby1) / (W * H))
 
-        self.num_clean = len(clean_ids)
-        print("Total Denoise Ids : {}".format(self.num_clean))
-
-    def _init_hazy_ids(self):
-        temp_ids = []
-        hazy = self.args.data_file_dir + "hazy/hazy_outside.txt"
-        temp_ids+= [self.args.dehaze_dir + id_.strip() for id_ in open(hazy)]
-        self.hazy_ids = [{"clean_id" : x,"de_type":4} for x in temp_ids]
-
-        self.hazy_counter = 0
-        
-        self.num_hazy = len(self.hazy_ids)
-        print("Total Hazy Ids : {}".format(self.num_hazy))
-
-    def _init_rs_ids(self):
-        temp_ids = []
-        rs = self.args.data_file_dir + "rainy/rainTrain.txt"
-        temp_ids+= [self.args.derain_dir + id_.strip() for id_ in open(rs)]
-        self.rs_ids = [{"clean_id":x,"de_type":3} for x in temp_ids]
-        self.rs_ids = self.rs_ids * 120
-
-        self.rl_counter = 0
-        self.num_rl = len(self.rs_ids)
-        print("Total Rainy Ids : {}".format(self.num_rl))
-    
-
-    def _crop_patch(self, img_1, img_2):
-        H = img_1.shape[0]
-        W = img_1.shape[1]
-        ind_H = random.randint(0, H - self.args.patch_size)
-        ind_W = random.randint(0, W - self.args.patch_size)
-
-        patch_1 = img_1[ind_H:ind_H + self.args.patch_size, ind_W:ind_W + self.args.patch_size]
-        patch_2 = img_2[ind_H:ind_H + self.args.patch_size, ind_W:ind_W + self.args.patch_size]
-
-        return patch_1, patch_2
-
-    def _get_gt_name(self, rainy_name):
-        gt_name = rainy_name.split("rainy")[0] + 'gt/norain-' + rainy_name.split('rain-')[-1]
-        return gt_name
-
-    def _get_nonhazy_name(self, hazy_name):
-        dir_name = hazy_name.split("synthetic")[0] + 'original/'
-        name = hazy_name.split('/')[-1].split('_')[0]
-        suffix = '.' + hazy_name.split('.')[-1]
-        nonhazy_name = dir_name + name + suffix
-        return nonhazy_name
-
-    def _merge_ids(self):
-        self.sample_ids = []
-        if "denoise_15" in self.de_type:
-            self.sample_ids += self.s15_ids
-            self.sample_ids += self.s25_ids
-            self.sample_ids += self.s50_ids
-        if "derain" in self.de_type:
-            self.sample_ids+= self.rs_ids
-        
-        if "dehaze" in self.de_type:
-            self.sample_ids+= self.hazy_ids
-        print(len(self.sample_ids))
-
-    def __getitem__(self, idx):
-        sample = self.sample_ids[idx]
-        de_id = sample["de_type"]
-
-        if de_id < 3:
-            if de_id == 0:
-                clean_id = sample["clean_id"]
-            elif de_id == 1:
-                clean_id = sample["clean_id"]
-            elif de_id == 2:
-                clean_id = sample["clean_id"]
-
-            clean_img = crop_img(np.array(Image.open(clean_id).convert('RGB')), base=16)
-            clean_patch = self.crop_transform(clean_img)
-            clean_patch= np.array(clean_patch)
-
-            clean_name = clean_id.split("/")[-1].split('.')[0]
-
-            clean_patch = random_augmentation(clean_patch)[0]
-
-            degrad_patch = self.D.single_degrade(clean_patch, de_id)
-        else:
-            if de_id == 3:
-                # Rain Streak Removal
-                degrad_img = crop_img(np.array(Image.open(sample["clean_id"]).convert('RGB')), base=16)
-                clean_name = self._get_gt_name(sample["clean_id"])
-                clean_img = crop_img(np.array(Image.open(clean_name).convert('RGB')), base=16)
-            elif de_id == 4:
-                # Dehazing with SOTS outdoor training set
-                degrad_img = crop_img(np.array(Image.open(sample["clean_id"]).convert('RGB')), base=16)
-                clean_name = self._get_nonhazy_name(sample["clean_id"])
-                clean_img = crop_img(np.array(Image.open(clean_name).convert('RGB')), base=16)
-
-            degrad_patch, clean_patch = random_augmentation(*self._crop_patch(degrad_img, clean_img))
-
-        clean_patch = self.toTensor(clean_patch)
-        degrad_patch = self.toTensor(degrad_patch)
+    return mixed_clean, mixed_degrad, lam
 
 
-        return [clean_name, de_id], degrad_patch, clean_patch
+def split_dataset(dataset, val_ratio=0.2, seed=42):
+    """
+    Split dataset into training and validation sets
+    Args:
+        dataset: Dataset to split
+        val_ratio: Validation set ratio
+        seed: Random seed
+    Returns:
+        train_dataset, val_dataset
+    """
+    # Group samples by degradation type
+    derain_pairs = []
+    desnow_pairs = []
 
-    def __len__(self):
-        return len(self.sample_ids)
-"""
+    for pair in dataset.sample_pairs:
+        if pair[3] == 3:  # derain
+            derain_pairs.append(pair)
+        elif pair[3] == 6:  # desnow
+            desnow_pairs.append(pair)
+
+    # Calculate validation size for each type
+    derain_val_size = int(len(derain_pairs) * val_ratio)
+    desnow_val_size = int(len(desnow_pairs) * val_ratio)
+
+    # Set random seed for reproducibility
+    random.seed(seed)
+
+    # Randomly select validation samples for each type
+    derain_val_indices = random.sample(
+        range(len(derain_pairs)), derain_val_size)
+    desnow_val_indices = random.sample(
+        range(len(desnow_pairs)), desnow_val_size)
+
+    # Create validation set
+    val_pairs = []
+    for idx in derain_val_indices:
+        val_pairs.append(derain_pairs[idx])
+    for idx in desnow_val_indices:
+        val_pairs.append(desnow_pairs[idx])
+
+    # Create training set
+    train_pairs = []
+    for i, pair in enumerate(derain_pairs):
+        if i not in derain_val_indices:
+            train_pairs.append(pair)
+    for i, pair in enumerate(desnow_pairs):
+        if i not in desnow_val_indices:
+            train_pairs.append(pair)
+
+    # Create new datasets
+    train_dataset = PromptTrainDataset(
+        dataset.root_dir,
+        patch_size=dataset.patch_size,
+        is_train=True,
+        use_cutmix=dataset.use_cutmix,
+        cutmix_prob=dataset.cutmix_prob
+    )
+    train_dataset.sample_pairs = train_pairs
+
+    val_dataset = PromptTrainDataset(
+        dataset.root_dir,
+        patch_size=dataset.patch_size,
+        is_train=False,  # Validation set should not use augmentation
+        use_cutmix=False,  # Disable CutMix for validation
+        cutmix_prob=0.0
+    )
+    val_dataset.sample_pairs = val_pairs
+
+    print(f"Training set: {len(train_pairs)} samples")
+    print(f"Validation set: {len(val_pairs)} samples")
+    print(f"Derain validation samples: {len(derain_val_indices)}")
+    print(f"Desnow validation samples: {len(desnow_val_indices)}")
+
+    return train_dataset, val_dataset
 
 
 class PromptTrainDataset(Dataset):
-    def __init__(self, root_dir, patch_size=128):
+    def __init__(self, root_dir, patch_size=128, is_train=True, use_cutmix=True, cutmix_prob=0.5):
         super().__init__()
         self.root_dir = root_dir
         self.clean_dir = os.path.join(root_dir, "clean")
         self.degraded_dir = os.path.join(root_dir, "degraded")
         self.patch_size = patch_size
+        self.is_train = is_train
+        self.use_cutmix = use_cutmix and is_train  # Only enable CutMix for training
+        self.cutmix_prob = cutmix_prob
 
         self.toTensor = ToTensor()
-        self.crop_transform = Compose([
-            ToPILImage(),
-            RandomCrop(patch_size),
-        ])
+        if is_train:
+            self.crop_transform = Compose([
+                ToPILImage(),
+                RandomCrop(patch_size),
+            ])
+        else:
+            self.crop_transform = None
 
         self.sample_pairs = self._load_pairs()
 
@@ -209,14 +177,31 @@ class PromptTrainDataset(Dataset):
         return pairs
 
     def _crop_patch(self, img_1, img_2):
-        H, W = img_1.shape[:2]
-        ind_H = random.randint(0, H - self.patch_size)
-        ind_W = random.randint(0, W - self.patch_size)
-        patch_1 = img_1[ind_H:ind_H + self.patch_size,
-                        ind_W:ind_W + self.patch_size]
-        patch_2 = img_2[ind_H:ind_H + self.patch_size,
-                        ind_W:ind_W + self.patch_size]
-        return patch_1, patch_2
+        if self.is_train:
+            H, W = img_1.shape[:2]
+            ind_H = random.randint(0, H - self.patch_size)
+            ind_W = random.randint(0, W - self.patch_size)
+            patch_1 = img_1[ind_H:ind_H + self.patch_size,
+                            ind_W:ind_W + self.patch_size]
+            patch_2 = img_2[ind_H:ind_H + self.patch_size,
+                            ind_W:ind_W + self.patch_size]
+            return patch_1, patch_2
+        else:
+            return img_1, img_2
+
+    def _add_gaussian_noise(self, img, sigma_range=(0, 15)):
+        """
+        Add random Gaussian noise to the image
+        Args:
+            img: Input image (numpy array)
+            sigma_range: Range of noise standard deviation (min, max)
+        Returns:
+            Noisy image
+        """
+        sigma = np.random.uniform(sigma_range[0], sigma_range[1])
+        noise = np.random.normal(0, sigma, img.shape)
+        noisy_img = np.clip(img + noise, 0, 255).astype(np.uint8)
+        return noisy_img
 
     def __len__(self):
         return len(self.sample_pairs)
@@ -227,13 +212,69 @@ class PromptTrainDataset(Dataset):
         clean_img = np.array(Image.open(clean_path).convert("RGB"))
         degrad_img = np.array(Image.open(degraded_path).convert("RGB"))
 
-        degrad_patch, clean_patch = self._crop_patch(degrad_img, clean_img)
+        if self.is_train:
+            degrad_patch, clean_patch = self._crop_patch(degrad_img, clean_img)
 
-        degrad_patch, clean_patch = random_augmentation(
-            degrad_patch, clean_patch)
+            # Convert to tensors for CutMix
+            # This converts to CHW format and normalizes to [0,1]
+            clean_patch = self.toTensor(clean_patch)
+            # This converts to CHW format and normalizes to [0,1]
+            degrad_patch = self.toTensor(degrad_patch)
 
-        degrad_patch = self.toTensor(degrad_patch)
-        clean_patch = self.toTensor(clean_patch)
+            # Apply CutMix
+            if self.use_cutmix and random.random() < self.cutmix_prob:
+                # Find another image with the same degradation type
+                same_degradation_pairs = [(i, pair) for i, pair in enumerate(self.sample_pairs)
+                                          if pair[3] == de_id and i != idx]
+
+                if same_degradation_pairs:  # Only proceed if we found a matching image
+                    idx2, (clean_path2, degraded_path2, _,
+                           _) = random.choice(same_degradation_pairs)
+
+                    clean_img2 = np.array(
+                        Image.open(clean_path2).convert("RGB"))
+                    degrad_img2 = np.array(Image.open(
+                        degraded_path2).convert("RGB"))
+
+                    degrad_patch2, clean_patch2 = self._crop_patch(
+                        degrad_img2, clean_img2)
+
+                    # Convert to tensors
+                    clean_patch2 = self.toTensor(clean_patch2)
+                    degrad_patch2 = self.toTensor(degrad_patch2)
+
+                    # Perform CutMix
+                    clean_patch, degrad_patch, _ = cutmix(
+                        clean_patch, degrad_patch, clean_patch2, degrad_patch2)
+
+            # Convert to numpy for augmentation and noise
+            if clean_patch.is_cuda:
+                clean_patch = clean_patch.cpu()
+            if degrad_patch.is_cuda:
+                degrad_patch = degrad_patch.cpu()
+
+            # Convert back to [0, 255] range for numpy operations
+            clean_patch = (clean_patch * 255).permute(1,
+                                                      2, 0).numpy().astype(np.uint8)
+            degrad_patch = (degrad_patch * 255).permute(1,
+                                                        2, 0).numpy().astype(np.uint8)
+
+            # Randomly add Gaussian noise
+            if random.random() < 0.5:  # 50% probability to add noise
+                degrad_patch = self._add_gaussian_noise(degrad_patch)
+
+            # Apply augmentation after CutMix and noise
+            degrad_patch, clean_patch = random_augmentation(
+                degrad_patch, clean_patch)
+
+            # Convert back to tensor and ensure CHW format
+            clean_patch = torch.from_numpy(
+                clean_patch).permute(2, 0, 1).float() / 255.0
+            degrad_patch = torch.from_numpy(
+                degrad_patch).permute(2, 0, 1).float() / 255.0
+        else:
+            degrad_patch = self.toTensor(degrad_img)
+            clean_patch = self.toTensor(clean_img)
 
         return [clean_name, de_id], degrad_patch, clean_patch
 
@@ -395,7 +436,7 @@ class TestSpecificDataset(Dataset):
             if len(name_list) == 0:
                 raise Exception(
                     'The input directory does not contain any image files')
-            self.degraded_ids += [root + id_ for id_ in name_list]
+            self.degraded_ids = [os.path.join(root, id_) for id_ in name_list]
         else:
             if any([root.endswith(ext) for ext in extensions]):
                 name_list = [root]
@@ -409,7 +450,7 @@ class TestSpecificDataset(Dataset):
     def __getitem__(self, idx):
         degraded_img = crop_img(
             np.array(Image.open(self.degraded_ids[idx]).convert('RGB')), base=16)
-        name = self.degraded_ids[idx].split('/')[-1][:-4]
+        name = os.path.basename(self.degraded_ids[idx]).split('.')[0]
 
         degraded_img = self.toTensor(degraded_img)
 

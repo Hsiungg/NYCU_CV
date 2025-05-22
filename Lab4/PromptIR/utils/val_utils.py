@@ -1,8 +1,8 @@
-
 import time
 import numpy as np
 from skimage.metrics import peak_signal_noise_ratio, structural_similarity
 from skvideo.measure import niqe
+import torch
 
 
 class AverageMeter():
@@ -47,23 +47,42 @@ def accuracy(output, target, topk=(1,)):
     return res
 
 
-def compute_psnr_ssim(recoverd, clean):
-    assert recoverd.shape == clean.shape
-    recoverd = np.clip(recoverd.detach().cpu().numpy(), 0, 1)
-    clean = np.clip(clean.detach().cpu().numpy(), 0, 1)
+def compute_psnr_ssim(restored, clean):
+    restored = restored.detach().cpu().numpy()
+    clean = clean.detach().cpu().numpy()
 
-    recoverd = recoverd.transpose(0, 2, 3, 1)
-    clean = clean.transpose(0, 2, 3, 1)
     psnr = 0
     ssim = 0
+    psnr_list = []
 
-    for i in range(recoverd.shape[0]):
-        # psnr_val += compare_psnr(clean[i], recoverd[i])
-        # ssim += compare_ssim(clean[i], recoverd[i], multichannel=True)
-        psnr += peak_signal_noise_ratio(clean[i], recoverd[i], data_range=1)
-        ssim += structural_similarity(clean[i], recoverd[i], data_range=1, multichannel=True)
+    for i in range(restored.shape[0]):
+        # compute psnr
+        psnr_value = peak_signal_noise_ratio(
+            clean[i], restored[i], data_range=1)
+        psnr += psnr_value
+        psnr_list.append(psnr_value)
 
-    return psnr / recoverd.shape[0], ssim / recoverd.shape[0], recoverd.shape[0]
+        # compute ssim
+        h, w = clean[i].shape[1:]
+        win_size = min(7, min(h, w))
+        if win_size % 2 == 0:
+            win_size -= 1
+        if win_size < 3:
+            win_size = 3
+
+        ssim_value = structural_similarity(
+            clean[i],
+            restored[i],
+            data_range=1,
+            channel_axis=0,
+            win_size=win_size
+        )
+        ssim += ssim_value
+
+    psnr /= restored.shape[0]
+    ssim /= restored.shape[0]
+
+    return psnr, ssim, psnr_list
 
 
 def compute_niqe(image):
@@ -72,6 +91,7 @@ def compute_niqe(image):
     niqe_val = niqe(image)
 
     return niqe_val.mean()
+
 
 class timer():
     def __init__(self):
