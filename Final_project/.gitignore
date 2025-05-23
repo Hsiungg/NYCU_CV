@@ -1,4 +1,6 @@
 wandb
 data
-dataset_stats
+dataset_stats_*
 *.zip
+models/
+*.pt
