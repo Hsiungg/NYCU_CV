@@ -75,7 +75,8 @@ class TTAWrapper:
 class PromptIRModel(pl.LightningModule):
     def __init__(self):
         super().__init__()
-        self.net = PromptIR(decoder=True)
+        self.net = PromptIR(
+            num_blocks=[8, 12, 12, 16], num_refinement_blocks=8, decoder=True)
         self.loss_fn = nn.L1Loss()
 
     def forward(self, x):
@@ -156,9 +157,9 @@ if __name__ == '__main__':
     parser.add_argument('--output_path', type=str,
                         default="output/", help='output save path')
     parser.add_argument('--ckpt_path', type=str,
-                        default="/mnt/sda/cv/checkpoints/nocut_change_loss-128/", help='checkpoint save path')
+                        default="/mnt/sda1/cv/checkpoints/deeper_model/", help='checkpoint save path')
     parser.add_argument('--ckpt_name', type=str,
-                        default="promptir-epoch=199-val_psnr=28.90.ckpt", help='checkpoint save path')
+                        default="promptir-epoch=63-val_psnr=30.07.ckpt", help='checkpoint save path')
     parser.add_argument('--test_path', type=str,
                         default="data/test/degraded", help='path to test images')
     parser.add_argument('--use_tta', action='store_true',

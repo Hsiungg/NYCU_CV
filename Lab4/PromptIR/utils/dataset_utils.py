@@ -5,7 +5,7 @@ from PIL import Image
 import numpy as np
 
 from torch.utils.data import Dataset, random_split
-from torchvision.transforms import ToPILImage, Compose, RandomCrop, ToTensor
+from torchvision.transforms import ToPILImage, Compose, RandomCrop, ToTensor, ColorJitter, RandomRotation
 import torch
 
 from utils.image_utils import random_augmentation, crop_img
@@ -154,6 +154,9 @@ class PromptTrainDataset(Dataset):
             self.crop_transform = Compose([
                 ToPILImage(),
                 RandomCrop(patch_size),
+                ColorJitter(brightness=0.2, contrast=0.2,
+                            saturation=0.2, hue=0.1),
+                RandomRotation(degrees=10),
             ])
         else:
             self.crop_transform = None

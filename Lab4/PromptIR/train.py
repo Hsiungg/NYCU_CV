@@ -48,28 +48,6 @@ class CharbonnierLoss(nn.Module):
         return loss.mean()
 
 
-class MS_SSIMLoss(nn.Module):
-    def __init__(self):
-        super().__init__()
-
-    def forward(self, pred, target):
-        # Ensure inputs are in valid range
-        pred = torch.clamp(pred, 0, 1)
-        target = torch.clamp(target, 0, 1)
-
-        # Add small epsilon to prevent division by zero
-        pred = pred + 1e-8
-        target = target + 1e-8
-
-        try:
-            # Try new version first
-            return 1 - ms_ssim(pred, target, data_range=1.0, size_average=True)
-        except Exception as e:
-            print(f"MS-SSIM calculation failed: {str(e)}")
-            # Fall back to regular SSIM if MS-SSIM fails
-            return 1 - ssim(pred, target, data_range=1.0, size_average=True)
-
-
 class CombinedLoss(nn.Module):
     def __init__(self, w_charbonnier=0.85, w_ssim=0.15, mode='train'):
         super().__init__()
@@ -89,11 +67,10 @@ class PromptIRModel(pl.LightningModule):
     def __init__(self, args):
         super().__init__()
         self.args = args
-        self.net = PromptIR(decoder=True)
-        self.train_loss_fn = CombinedLoss(
-            w_charbonnier=0.85, w_ssim=0.15, mode='train')
-        self.val_loss_fn = CombinedLoss(
-            w_charbonnier=0.85, w_ssim=0.15, mode='val')
+        self.net = PromptIR(
+            num_blocks=[8, 12, 12, 16], num_refinement_blocks=8, decoder=True)
+        self.train_loss_fn = nn.MSELoss()
+        self.val_loss_fn = nn.MSELoss()
         self.save_hyperparameters()
 
     def forward(self, x):
@@ -138,9 +115,9 @@ class PromptIRModel(pl.LightningModule):
         if self.args.scheduler == 'cosine_warmup':
             scheduler = LinearWarmupCosineAnnealingLR(
                 optimizer=optimizer,
-                warmup_epochs=20,
+                warmup_epochs=40,
                 max_epochs=self.args.epochs,
-                eta_min=1e-6,
+                eta_min=2e-6,
             )
             return [optimizer], [scheduler]
 
@@ -216,7 +193,7 @@ def main():
     )
     # Use a different random seed for dataset splitting
     train_dataset, val_dataset = split_dataset(
-        dataset, val_ratio=0.2, seed=123)
+        dataset, val_ratio=0.2, seed=4444)
 
     train_loader = DataLoader(
         train_dataset,
@@ -263,7 +240,6 @@ def main():
         max_epochs=opt.epochs,
         precision=16,
         accelerator="gpu",
-        gradient_clip_val=1.0,
         devices=opt.num_gpus,
         strategy="ddp_find_unused_parameters_true",
         callbacks=[checkpoint_callback],
