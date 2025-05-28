@@ -6,7 +6,7 @@ Name: 王翔 Hsiang, Wang
 
 ## Task Description
 
-In Lab 4, **Mask R-CNN** was used to perform instance segmentation on a dataset containing four types of cells. The model size (trainable parameters) was constrained to a maximum of 200 M, and only the **Mask R-CNN** architecture was allowed. The final evaluation metric was the segmentation **mAP@50**.
+In Lab 4, we used **PromptIR** for an **all-in-one image restoration** task, which includes two degradation types: **derain** and **desnow**. The training dataset contains 1600 images for each degradation type. During testing, the specific degradation type of the input is **unknown**, and the model must rely on its prompt to infer the correct restoration approach. The evaluation metric is **PSNR**, where higher values indicate better performance. Additionally, the use of **external data** and **pretrained weights** is **not allowed**.
 
 ---
 
