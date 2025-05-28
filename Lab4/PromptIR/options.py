@@ -5,7 +5,7 @@ parser = argparse.ArgumentParser()
 # Input Parameters
 parser.add_argument('--cuda', type=int, default=0)
 
-parser.add_argument('--epochs', type=int, default=100,
+parser.add_argument('--epochs', type=int, default=50,
                     help='maximum number of epochs to train the total model.')
 parser.add_argument('--batch_size', type=int, default=4,
                     help="Batch size to use per GPU")
@@ -37,7 +37,7 @@ parser.add_argument("--ckpt_dir", type=str, default="/mnt/sda1/cv/checkpoints/de
                     help="Name of the Directory where the checkpoint is to be saved")
 parser.add_argument("--num_gpus", type=int, default=1,
                     help="Number of GPUs to use for training")
-parser.add_argument("--resume", type=str, default="/mnt/sda1/cv/checkpoints/deeper_model/last.ckpt",
+parser.add_argument("--resume", type=str, default=None,
                     help="Path to checkpoint to resume training from")
 
 options = parser.parse_args()

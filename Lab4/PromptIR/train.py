@@ -69,8 +69,8 @@ class PromptIRModel(pl.LightningModule):
         self.args = args
         self.net = PromptIR(
             num_blocks=[8, 12, 12, 16], num_refinement_blocks=8, decoder=True)
-        self.train_loss_fn = nn.MSELoss()
-        self.val_loss_fn = nn.MSELoss()
+        self.train_loss_fn = nn.L1Loss()
+        self.val_loss_fn = nn.L1Loss()
         self.save_hyperparameters()
 
     def forward(self, x):
@@ -115,7 +115,7 @@ class PromptIRModel(pl.LightningModule):
         if self.args.scheduler == 'cosine_warmup':
             scheduler = LinearWarmupCosineAnnealingLR(
                 optimizer=optimizer,
-                warmup_epochs=40,
+                warmup_epochs=10,
                 max_epochs=self.args.epochs,
                 eta_min=2e-6,
             )
