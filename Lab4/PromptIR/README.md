@@ -1,109 +1,91 @@
-# PromptIR: Prompting for All-in-One Blind Image Restoration (NeurIPS'23)
+## NYCU Computer Vision 2025 Spring Lab3
 
-[Vaishnav Potlapalli](https://www.vaishnavrao.com/), [Syed Waqas Zamir](https://scholar.google.ae/citations?hl=en&user=POoai-QAAAAJ), [Salman Khan](https://salman-h-khan.github.io/) and [Fahad Shahbaz Khan](https://scholar.google.es/citations?user=zvaeYnUAAAAJ&hl=en)
+Student ID: 313551127
 
-[![paper](https://img.shields.io/badge/arXiv-Paper-<COLOR>.svg)](https://arxiv.org/abs/2306.13090)
+Name: 王翔 Hsiang, Wang
 
+## Task Description
 
-<hr />
+In Lab 3, **Mask R-CNN** was used to perform instance segmentation on a dataset containing four types of cells. The model size (trainable parameters) was constrained to a maximum of 200 M, and only the **Mask R-CNN** architecture was allowed. The final evaluation metric was the segmentation **mAP@50**.
 
-> **Abstract:** *Image restoration involves recovering a high-quality clean image from its degraded
-version. Deep learning-based methods have significantly improved image restora-
-tion performance, however, they have limited generalization ability to different
-degradation types and levels. This restricts their real-world application since it
-requires training individual models for each specific degradation and knowing the
-input degradation type to apply the relevant model. We present a prompt-based
-learning approach, PromptIR, for All-In-One image restoration that can effectively
-restore images from various types and levels of degradation. In particular, our
-method uses prompts to encode degradation-specific information, which is then
-used to dynamically guide the restoration network. This allows our method to
-generalize to different degradation types and levels, while still achieving state-of-
-the-art results on image denoising, deraining, and dehazing. Overall, PromptIR
-offers a generic and efficient plugin module with few lightweight prompts that can
-be used to restore images of various types and levels of degradation with no prior
-information of corruptions.* 
-<hr />
+---
 
-## Network Architecture
+## Environment Setup
 
-<img src = "mainfig.png"> 
+### 1. Clone the Repository
 
-## Installation and Data Preparation
-
-See [INSTALL.md](INSTALL.md) for the installation of dependencies and dataset preperation required to run this codebase.
-
-## Training
-
-After preparing the training data in ```data/``` directory, use 
-```
-python train.py
-```
-to start the training of the model. Use the ```de_type``` argument to choose the combination of degradation types to train on. By default it is set to all the 3 degradation types (noise, rain, and haze).
-
-Example Usage: If we only want to train on deraining and dehazing:
-```
-python train.py --de_type derain dehaze
+```sh
+git clone https://github.com/Hsiungg/NYCU_CV.git
+cd NYCU_CV/Lab3
 ```
 
-## Testing
+---
 
-After preparing the testing data in ```test/``` directory, place the mode checkpoint file in the ```ckpt``` directory. The pretrained model can be downloaded [here](https://drive.google.com/file/d/1j-b5Od70pGF7oaCqKAfUzmf-N-xEAjYl/view?usp=sharingg), alternatively, it is also available under the releases tab. To perform the evalaution use
+### 2. Install Dependencies
+
+#### Recommended Python Version
+
+It is recommended to use **Python 3.10.17** for this lab.
+
+Use the provided **requirements.txt** to handle the environment package dependencies.
+
+```sh
+# Install required libraries and tools
+pip install -r requirements.txt
 ```
-python test.py --mode {n}
+
+If this failed (third party package from github sometimes need to be installed manually), try to install **Detectron2** from [here](<https://github.com/facebookresearch/detectron2?tab=readme-ov-file#installation>) by following the **Installation** part.
+
+---
+
+### 3. Download the Dataset
+
+You can download the dataset from the following link:
+[Download link](<https://drive.google.com/file/d/1B0qWNzQZQmfQP7x7o4FDdgb9GvPDoFzI/view>)
+
+After downloading, place the **hw3-data-release.tar.gz** file inside the cloned repository directory.
+
+After placing the dataset.tar.gz file in the cloned directory, extract it using:
+
+```sh
+mkdir -p data
+mv hw3-data-release.tar.gz data/
+cd data
+tar -xzvf hw3-data-release.tar.gz
+cd ..
 ```
-```n``` is a number that can be used to set the tasks to be evaluated on, 0 for denoising, 1 for deraining, 2 for dehaazing and 3 for all-in-one setting.
 
-Example Usage: To test on all the degradation types at once, run:
+---
 
+### 4. Set Up Training and Testing Environment
+
+To start training the model, use the following command:
+
+```sh
+python trainer.py --output_dir /path/to/output/directory
 ```
-python test.py --mode 3
+
+---
+
+#### Training Options
+
+- --output_dir: Path to the output directory for model weights and model yaml.
+
+To start testing the model and output **test-results.json** file, use the following command:
+
+```sh
+python tester.py --save_dir /path/to/save/directory --model_name "your_model_name.pth"
 ```
 
-## Demo
-To obtain visual results from the model ```demo.py``` can be used. After placing the saved model file in ```ckpt``` directory, run:
-```
-python demo.py --test_path {path_to_degraded_images} --output_path {save_images_here}
-```
-Example usage to run inference on a directory of images:
-```
-python demo.py --test_path './test/demo/' --output_path './output/demo/'
-```
-Example usage to run inference on an image directly:
-```
-python demo.py --test_path './test/demo/image.png' --output_path './output/demo/'
-```
-To use tiling option while running ```demo.py``` set ```--tile``` option to ```True```. The Tile size and Tile overlap parameters can be adjusted using ```--tile_size``` and ```--tile_overlap``` options respectively.
+#### Testing Options
+
+- --save_dir: Path of the save directory for **output_config.yaml** file and model.pth file.
+- --model_name: The name of the model you want to test. ex: xxx.pth
+
+---
+
+## Performance snapshots
 
 
-
-
-## Results
-Performance results of the PromptIR framework trained under the all-in-one setting
-
-<summary><strong>Table</strong> </summary>
-
-<img src = "prompt-ir-results.png"> 
-
-<summary><strong>Visual Results</strong></summary>
-
-The visual results of the PromptIR model evaluated under the all-in-one setting can be downloaded [here](https://drive.google.com/drive/folders/1Sm-mCL-i4OKZN7lKuCUrlMP1msYx3F6t?usp=sharing)
-
-
-
-## Citation
-If you use our work, please consider citing:
-
-    @inproceedings{potlapalli2023promptir,
-      title={PromptIR: Prompting for All-in-One Image Restoration},
-      author={Potlapalli, Vaishnav and Zamir, Syed Waqas and Khan, Salman and Khan, Fahad},
-      booktitle={Thirty-seventh Conference on Neural Information Processing Systems},
-      year={2023}
-    }
-
-
-## Contact
-Should you have any questions, please contact pvaishnav2718@gmail.com
-
-
-**Acknowledgment:** This code is based on the [AirNet](https://github.com/XLearning-SCU/2022-CVPR-AirNet) and [Restormer](https://github.com/swz30/Restormer) repositories. 
+![image](https://github.com/Hsiungg/NYCU_CV/blob/main/Lab3/final_result.png)
 
