@@ -61,7 +61,7 @@ cd ..
 To start training the model, use the following command:
 
 ```sh
-python train.py --training_root_dir /path/to/training/img/directory --ckpt_path /path/to/output/ckpt/directory
+python train.py --training_root_dir "/path/to/training/img/directory" --ckpt_path "/path/to/output/ckpt/directory"
 ```
 
 ---
@@ -74,7 +74,7 @@ python train.py --training_root_dir /path/to/training/img/directory --ckpt_path 
 To start testing the model and output pred.npz file and all predicted clean images, use the following command:
 
 ```sh
-python tester.py --output_path /path/to/output/directory --ckpt_path /path/to/ckpt/directory --ckpt_name "your_model_name.ckpt" --test_path /path/to/test/images/directory
+python tester.py --output_path "/path/to/output/directory" --ckpt_path "/path/to/ckpt/directory" --ckpt_name "your_model_name.ckpt" --test_path "/path/to/test/images/directory"
 ```
 
 #### Testing Options
