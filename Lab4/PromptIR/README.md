@@ -90,5 +90,5 @@ python tester.py --output_path "/path/to/output/directory" --ckpt_path "/path/to
 ## Performance snapshots
 
 
-![image](https://github.com/Hsiungg/NYCU_CV/blob/main/Lab4/final_result.png)
+![image](https://github.com/Hsiungg/NYCU_CV/blob/main/Lab4/PromptIR/final.PNG)
 
